@@ -1,103 +1,23 @@
-# 🚀 Tools_ia - The Mini-Perplexity Stack
+# Tools_Team
 
-**Un agent hybride intelligent combinant recherche web, calculs, météo et corpus privé.**
-
-**Architecture :** Node.js 18+ | ES Modules | Mistral AI | Pinecone | Multi-tool Agent  
-**Phases complétées :** 1-9 (Complete hybrid system with RAG)
+**Projet collaboratif - En développement**
 
 ---
 
+## Installation
 
-## 🚀 Installation & Configuration
-
-### 1. Prérequis
+### Prérequis
 
 ```bash
 Node.js >= 18.0.0
 npm >= 8.0.0
 ```
 
-### 2. Cloner et installer
+### Installation des dépendances
 
 ```bash
-# Cloner le repository
-git clone https://github.com/MellGitson/Tools_ia.git
-cd Tools_ia
-
-# Installer les dépendances
 npm install
 ```
-
-### 3. Configuration .env
-
-Créer un fichier `.env` à la racine du projet :
-
-```bash
-# Embeddings & LLM Generation
-MISTRAL_API_KEY=sk-xxxxx
-
-# Vector Store (Pinecone)
-PINECONE_API_KEY=xxxxx
-PINECONE_INDEX_HOST=mini-perplexity-xxxxx.svc.aped-4627-b74a.pinecone.io
-
-# Optionnel: Fallback providers
-GROQ_API_KEY=gsk-xxxxx
-HUGGINGFACE_TOKEN=hf_xxxxx
-JINA_API_KEY=jina_xxxxx
-```
-
-**Où obtenir les clés :**
-- **Mistral AI** : https://console.mistral.ai/keys
-- **Groq Cloud** : https://console.groq.com/keys  
-- **Pinecone** : https://app.pinecone.io
-
----
-
-## 📖 Utilisation Complete
-
-### 🎯 PHASE 9: Hybrid Agent (Recommended)
-
-```bash
-npm run hybrid
-```
-
-**Lance l'agent avec 5 tests d'auto-routing :**
-
-```
-Test 1: "Combien font 2^8?"
-→ Tool: calculate
-→ Result: 256
-✅ Routing correct
-
-Test 2: "Quel temps fait-il à Lyon?"
-→ Tool: get_weather
-→ Result: API called  
-✅ Routing correct
-
-Test 3: "Qui a gagné la Coupe du Monde 2022?"
-→ Tool: web_search
-→ Result: "Argentina"
-✅ Routing correct
-
-Test 4: "Qu'est-ce que l'intelligence artificielle?"
-→ Tool: rag_search
-→ Result: Corpus privé Pinecone
-✅ Routing correct
-
-Test 5: "Une question générique"
-→ Tool: NONE (direct response)
-→ Result: Direct LLM response
-✅ No false positives
-```
-
----
-
-### 🎓 TRACK A: Tools (Phases 1-4)
-
-#### Phase 1: Calculatrice
-
-```bash
-npm run calculator
 ```
 
 Évalue des expressions mathématiques localement:
