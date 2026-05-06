@@ -18,9 +18,53 @@ npm >= 8.0.0
 ```bash
 npm install
 ```
+
+---
+
+## Features
+
+### Indexation de documents (Indexing Manager)
+
+Indexe des fichiers texte dans Pinecone pour la recherche sémantique.
+
+**Indexer un répertoire :**
+```bash
+npm run index
+```
+Indexe tous les fichiers `.txt` du répertoire `data/`
+
+**Indexer des fichiers spécifiques :**
+```bash
+npm run index file1.txt file2.txt
 ```
 
-Évalue des expressions mathématiques localement:
+**Exemple de sortie :**
+```
+🔍 Indexation de fichiers
+================================================================================
+
+Indexation de 2 fichiers dans l'index "mini-perplexity"
+
+→ Traitement de article-droit-travail.txt...
+  247 chunks créés
+  Upsert 50/247 vecteurs...
+  Upsert 100/247 vecteurs...
+  ...
+  ✓ 247 vecteurs indexés
+
+→ Traitement de guide-nodejs.txt...
+  312 chunks créés
+  Upsert 50/312 vecteurs...
+  ...
+  ✓ 312 vecteurs indexés
+
+================================================================================
+✅ Indexation terminée. 559 vecteurs au total.
+```
+
+---
+
+## Scripts disponibles
 - Input: `2 + 2` → Output: `4`
 - Input: `Math.sqrt(16)` → Output: `4`
 - Input: `Math.pow(2, 8)` → Output: `256`
