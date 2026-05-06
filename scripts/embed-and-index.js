@@ -22,11 +22,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // CONFIGURATION PINECONE
 // ============================================================================
 
-const PINECONE_CONFIG = {
-  indexName: process.env.PINECONE_INDEX || 'mini-perplexity-groupe-1',
-  dimension: 1024, // mistral-embed dimension
-  namespace: process.env.PINECONE_NAMESPACE || 'pydantic-ai',
-};
+// Configuration PINECONE - sera chargée au runtime
+let PINECONE_CONFIG = null;
 
 let pinecone;
 let index;
@@ -201,15 +198,36 @@ async function embedChunksWithConcurrency(chunks) {
  * Initialise la connexion Pinecone
  */
 async function initPinecone() {
+  // Charger la config maintenant que dotenv a chargé les variables
+  if (!PINECONE_CONFIG) {
+    PINECONE_CONFIG = {
+      indexName: process.env.PINECONE_INDEX_NAME || 'mini-perplexity',
+      dimension: 1024, // mistral-embed dimension
+      namespace: process.env.PINECONE_NAMESPACE || 'pydantic-ai',
+      host: process.env.PINECONE_INDEX_HOST, // From .env
+    };
+  }
+
   const apiKey = process.env.PINECONE_API_KEY;
   if (!apiKey) {
     throw new Error('PINECONE_API_KEY not found in .env');
   }
 
-  pinecone = new Pinecone({ apiKey });
-  index = pinecone.Index(PINECONE_CONFIG.indexName);
+  if (!PINECONE_CONFIG.host) {
+    throw new Error(`PINECONE_INDEX_HOST not found in .env`);
+  }
 
-  console.log(`✅ Pinecone initialized (index: ${PINECONE_CONFIG.indexName})`);
+  pinecone = new Pinecone({ apiKey });
+  
+  console.log(`   📍 Index host: ${PINECONE_CONFIG.host}`);
+  
+  // Initialiser l'index avec le host
+  index = pinecone.Index({
+    host: PINECONE_CONFIG.host,
+    namespace: PINECONE_CONFIG.namespace,
+  });
+
+  console.log(`✅ Pinecone initialized (index: ${PINECONE_CONFIG.indexName}, namespace: ${PINECONE_CONFIG.namespace})`);
   return index;
 }
 
@@ -262,13 +280,13 @@ async function upsertVectors(vectors) {
           values_length: formattedBatch[0].values?.length,
           has_metadata: !!formattedBatch[0].metadata,
         }));
-        console.log(`      • Trying upsert with format: { vectors: [...] }`);
       }
 
-      // Essayer d'abord le format array simple
-      console.log(`   🔄 Appel index.upsert() avec format { records: [...] } (${formattedBatch.length} vecteurs)...`);
+      // Upsert avec batching
+      console.log(`   🔄 Upserting batch ${Math.floor(i / batchSize) + 1} (${formattedBatch.length} records)...`);
       await index.upsert({
-        records: formattedBatch, // SDK v7 expects { records: [...] }
+        records: formattedBatch,
+        namespace: PINECONE_CONFIG.namespace,
       });
 
       upsertedCount += batch.length;
@@ -339,13 +357,16 @@ export async function runFullPipeline() {
 
     console.log(`✅ ${totalChunks} chunks créés au total`);
 
+    // ÉTAPE 3 & 4: Initialiser Pinecone (pour que PINECONE_CONFIG soit disponible pendant embedding)
+    console.log('\n📍 Initializing Pinecone...');
+    await initPinecone();
+
     // ÉTAPE 3: Embedding avec Mistral
     console.log('\n🤖 Étape 3: Embedding avec Mistral...');
     const vectors = await embedChunksWithConcurrency(allChunks);
 
     // ÉTAPE 4: Indexation Pinecone
     console.log('\n📍 Étape 4: Indexation Pinecone...');
-    await initPinecone();
     const indexed = await upsertVectors(vectors);
 
     // RÉSUMÉ
@@ -457,7 +478,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   // Charger .env
   import('dotenv').then(({ default: dotenv }) => {
     dotenv.config();
-  }).then(() => {
+
     const command = process.argv[2];
 
     if (command === 'test') {
