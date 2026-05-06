@@ -57,7 +57,7 @@ async function searchSimilar(question, topK = 3) {
 
   try {
     // Étape 1: Embed la question
-    const questionEmbedding = await getEmbedding(question, 'mistral');
+    const questionEmbedding = await getEmbedding(question, 'auto');
 
     // Étape 2: Query Pinecone
     const matches = await queryPinecone(questionEmbedding, topK);

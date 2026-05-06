@@ -1,0 +1,2 @@
+Test document pour indexation.
+Ceci est un exemple de texte qui sera découpé en chunks et indexé dans Pinecone.

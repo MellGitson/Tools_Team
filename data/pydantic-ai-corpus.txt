@@ -1,0 +1,565 @@
+# Pydantic AI - Documentation Corpus Complète
+
+## Introduction à Pydantic AI
+
+Pydantic AI est un framework Python révolutionnaire pour construire des agents LLM avec validation typée. C'est la solution moderne et production-ready pour créer des agents d'IA robustes, type-safe et maintenables, sortie en 2024 par l'équipe Pydantic. Le framework s'appuie sur la validation Pydantic v2 pour garantir la qualité des données à chaque étape du pipeline.
+
+### Avantages clés de Pydantic AI
+
+- **Validation typée intégrée**: Utilise Pydantic v2 pour valider tous les types de données automatiquement
+- **Type-safe par défaut**: Les types Python sont respectés, prévient les erreurs à la compilation et à l'exécution
+- **Production-ready**: Framework mature conçu pour des applications critiques et scalables
+- **Support multi-fournisseur LLM**: Compatible avec OpenAI (GPT-4, GPT-3.5), Anthropic (Claude), Groq, Ollama, Azure OpenAI, Google Vertex AI
+- **Architecture modulaire**: Composants réutilisables et testables facilement
+- **Documentation riche**: Exemples complets et guides pour tous les cas d'usage
+- **Performances optimisées**: Caching, batching, streaming natifs
+- **Gestion d'erreurs robuste**: Retry automatique, circuit breaker, logging détaillé
+
+## Concepts Fondamentaux de Pydantic AI
+
+### Qu'est-ce qu'un Agent dans Pydantic AI ?
+
+Un Agent est l'entité principale et centrale qui gère l'interaction avec un modèle LLM. Il encapsule et orchestre:
+- Le modèle LLM utilisé (OpenAI, Anthropic, Groq, etc.)
+- Les outils disponibles pour accomplir les tâches
+- Le contexte d'exécution et l'état de la session
+- La validation automatique des réponses et des entrées
+- Le système de prompt et les instructions
+
+Un agent bien configuré peut réaliser des tâches complexes en interagissant intelligemment avec un LLM et en utilisant les outils appropriés. L'agent gère automatiquement les appels aux outils, la validation des résultats et la formulation de réponses cohérentes.
+
+```python
+from pydantic_ai import Agent
+
+# Créer un agent simple
+agent = Agent(
+    model='openai:gpt-4',
+    system_prompt='Tu es un assistant expert en Python'
+)
+
+# Créer un agent avancé avec configuration complète
+advanced_agent = Agent(
+    model='openai:gpt-4',
+    system_prompt='Tu es un assistant expert',
+    max_tokens=2048,
+    temperature=0.7,
+    tools=[tool1, tool2, tool3],
+    dependencies=['database', 'logger']
+)
+```
+
+### Différence Fondamentale: RunContext vs Agent
+
+Cette distinction est cruciale pour comprendre l'architecture de Pydantic AI:
+
+**Agent - Configuration Globale et Réutilisable:**
+- Défini une fois au démarrage de l'application
+- Configuration stateless et immutable
+- Définit le modèle LLM, les outils, les dépendances et le système de prompt
+- Réutilisé pour plusieurs invocations/requêtes
+- Exemple: Un agent de support client qui traite 1000 requêtes avec la même configuration
+
+**RunContext - Contexte d'Exécution Temporaire:**
+- Créé à chaque appel/invocation de l'agent
+- Contient l'état spécifique à cette exécution
+- Inclut l'entrée utilisateur, l'historique de conversation, les données utilisateur
+- Contient les résultats intermédiaires et l'état des appels aux outils
+- Nettoyé après la fin de l'exécution
+- Exemple: Pour une requête donnée, le RunContext contient la question, les chunks trouvés, les appels aux outils
+
+```python
+# Agent: réutilisable et stateless
+agent = Agent(model='openai:gpt-4')
+
+# RunContext: créé à chaque appel
+async with agent.run_context(user_input) as ctx:
+    # Le contexte contient l'état de cette invocation
+    result = await agent.run(ctx)
+    # Le contexte est fermé et nettoyé automatiquement
+
+# Même agent peut être utilisé des milliers de fois
+async with agent.run_context(user_input_2) as ctx2:
+    result_2 = await agent.run(ctx2)
+```
+
+## Définir des Outils dans Pydantic AI
+
+Les outils sont des fonctions Python que l'agent peut appeler pour accomplir des tâches spécifiques. Chaque outil doit avoir une signature claire avec types Pydantic et documentation.
+
+### Déclaration d'un Outil avec Pydantic AI
+
+Un outil bien défini doit inclure:
+- Un nom descriptif
+- Une documentation complète (docstring)
+- Des types d'entrée et de sortie validés avec Pydantic
+- Optionnellement, une dépendance ou un contexte
+
+```python
+from pydantic_ai import Agent, Tool
+from pydantic import BaseModel, Field
+
+# Définir le schéma d'entrée avec Pydantic
+class WeatherInput(BaseModel):
+    location: str = Field(..., description="Ville ou coordonnées GPS")
+    units: str = Field(default='celsius', description="celsius ou fahrenheit")
+    include_forecast: bool = Field(default=False, description="Inclure les prévisions")
+
+# Créer un outil
+def get_weather(data: WeatherInput) -> str:
+    """Récupère les conditions météorologiques actuelles pour une location.
+    
+    Utilise l'API OpenWeatherMap pour récupérer:
+    - Température actuelle
+    - Humidité et pression
+    - Condition et vitesse du vent
+    - Prévisions optionnelles (5 jours)
+    
+    Args:
+        data: Paramètres de requête incluant location et unités
+        
+    Returns:
+        String avec les données météorologiques formatées
+    """
+    # Implémentation du tool
+    temp = 22
+    return f"Météo à {data.location}: {temp}°{data.units[0].upper()}"
+
+# Ajouter le tool à l'agent
+agent.add_tool(get_weather)
+
+# Ou utiliser le décorateur @agent.tool
+@agent.tool
+def calculate(x: int, y: int, operation: str = 'add') -> float:
+    """Effectue une opération arithmétique.
+    
+    Opérations supportées: add, subtract, multiply, divide
+    """
+    if operation == 'add':
+        return x + y
+    elif operation == 'multiply':
+        return x * y
+    return x / y if operation == 'divide' else x - y
+```
+
+### Différence Importante: Tool vs ToolSet
+
+**Tool** - Un outil unique que l'agent peut utiliser:
+- Une fonction Python avec validation Pydantic
+- Signature claire et documentée
+- Exécutable immédiatement par l'agent
+- Cas d'usage: Une calculatrice, une requête API, une recherche de base de données
+
+**ToolSet** - Un groupe d'outils liés regroupés ensemble:
+- Plusieurs tools organisés logiquement
+- Meilleure organisation et réutilisabilité
+- Peut être versionnée et testée comme unité
+- Cas d'usage: Suite complète de tools pour une domaine (météo, finance, etc.)
+
+```python
+from pydantic_ai import Agent, ToolSet
+
+# Tool simple
+@agent.tool
+def add(x: int, y: int) -> int:
+    """Additionne deux nombres"""
+    return x + y
+
+@agent.tool
+def multiply(x: int, y: int) -> int:
+    """Multiplie deux nombres"""
+    return x * y
+
+# ToolSet: grouper les tools liés
+math_tools = ToolSet(name="math")
+math_tools.add(add)
+math_tools.add(multiply)
+
+# Ajouter tout le ToolSet à l'agent
+agent.add_toolset(math_tools)
+
+# Les tools du ToolSet sont maintenant disponibles pour l'agent
+```
+
+## Streaming de Réponses avec Pydantic AI
+
+Le streaming permet d'envoyer les données progressivement au client au lieu d'attendre la réponse complète. C'est particulièrement utile pour les LLMs qui peuvent générer des réponses longues.
+
+### Comment Streamer une Réponse ?
+
+Pydantic AI supporte plusieurs modes de streaming:
+
+```python
+import asyncio
+from pydantic_ai import Agent
+
+agent = Agent(model='openai:gpt-4')
+
+async def stream_response(user_input: str):
+    """Streame une réponse token par token"""
+    
+    # Mode 1: Streaming simple des tokens
+    async with agent.run_stream(user_input) as stream:
+        async for chunk in stream:
+            print(chunk, end='', flush=True)  # Afficher immédiatement
+        result = await stream.get_final_result()
+    
+    return result
+
+# Utilisation
+async def main():
+    result = await stream_response("Explique la relativité en 3 phrases")
+    print(f"\nRésultat final: {result}")
+
+asyncio.run(main())
+```
+
+### Modes de Streaming Supportés
+
+1. **Text Streaming** - Les tokens de texte sont envoyés au fur et à mesure:
+   - Affichage progressif: Meilleure expérience utilisateur
+   - Faible latence: Les données arrivent immédiatement
+   - Idéal pour: Chat, assistants conversationnels
+
+2. **Tool Streaming** - Les appels d'outils et leurs résultats sont streamés:
+   - Voir en temps réel quels outils sont appelés
+   - Afficher les résultats intermédiaires
+   - Idéal pour: Agents avec outils complexes
+
+3. **Full Streaming** - Tout est streamé (texte + outils + métadonnées):
+   - Contrôle total sur le flux
+   - Possible d'implémenter des UIs avancées
+   - Idéal pour: Applications sophistiquées
+
+### Configuration du Streaming
+
+```python
+from pydantic_ai import StreamConfig
+
+# Configuration avancée du streaming
+stream_config = StreamConfig(
+    buffer_size=1024,           # Taille du buffer (bytes)
+    timeout=30,                 # Timeout en secondes
+    max_retries=3,              # Retries en cas d'erreur
+    chunk_size=256              # Taille des chunks (tokens)
+)
+
+agent.configure_stream(stream_config)
+
+# Utilisation avec configuration
+async with agent.run_stream(user_input, config=stream_config) as stream:
+    async for chunk in stream:
+        process_chunk(chunk)
+```
+
+## Gestion Robuste des Erreurs
+
+Une application Pydantic AI robuste doit gérer plusieurs types d'erreurs de façon appropriée.
+
+### Stratégies Complètes de Gestion d'Erreurs
+
+**1. Validation d'Erreurs Pydantic (Données invalides)**
+```python
+from pydantic import ValidationError, BaseModel
+
+class UserInput(BaseModel):
+    name: str
+    age: int
+
+try:
+    # Ceci lèvera une ValidationError
+    user = UserInput(name="John", age="invalid")
+except ValidationError as e:
+    print(f"Erreur de validation: {e}")
+    for error in e.errors():
+        print(f"  - {error['loc']}: {error['msg']}")
+```
+
+**2. Erreurs de Modèle LLM (API, Rate Limit, Timeout)**
+```python
+from pydantic_ai import Agent, LLMError
+
+agent = Agent(model='openai:gpt-4')
+
+try:
+    response = await agent.run(user_input)
+except LLMError as e:
+    if "rate_limit" in str(e):
+        print("Rate limit dépassé, réessai dans 60 secondes")
+    elif "timeout" in str(e):
+        print("Le modèle a mis trop de temps à répondre")
+    else:
+        print(f"Erreur LLM: {e}")
+```
+
+**3. Erreurs d'Outils (Exécution échouée)**
+```python
+from pydantic_ai import ToolError
+
+@agent.tool
+def risky_database_query(query: str) -> str:
+    try:
+        result = db.execute(query)
+        if not result:
+            raise ToolError("Aucun résultat trouvé")
+        return result
+    except ConnectionError as e:
+        raise ToolError(f"Erreur de connexion DB: {e}")
+    except Exception as e:
+        raise ToolError(f"Erreur lors de la requête: {e}")
+```
+
+**4. Retry avec Backoff Exponentiel**
+```python
+from tenacity import retry, stop_after_attempt, wait_exponential
+import logging
+
+logger = logging.getLogger(__name__)
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10)
+)
+async def call_agent_with_retry(input_data: str):
+    """Appelle l'agent avec retry automatique"""
+    try:
+        return await agent.run(input_data)
+    except LLMError as e:
+        logger.warning(f"Tentative échouée: {e}")
+        raise
+```
+
+**5. Circuit Breaker (Prévenir cascades d'erreurs)**
+```python
+from pybreaker import CircuitBreaker
+
+circuit = CircuitBreaker(
+    fail_max=5,
+    reset_timeout=60,
+    name="agent_circuit"
+)
+
+@circuit
+async def call_agent_with_circuit_breaker(input_data: str):
+    return await agent.run(input_data)
+
+# Utilisation
+try:
+    result = await call_agent_with_circuit_breaker(user_input)
+except Exception as e:
+    if circuit.opened:
+        print("Circuit ouvert, service temporairement indisponible")
+    else:
+        print(f"Erreur: {e}")
+```
+
+### Bonnes Pratiques Essentielles
+
+- **Toujours wrapper les appels LLM**: Les LLMs sont imprévisibles, toujours utiliser try-catch
+- **Logger les erreurs pour le debugging**: Inclure le contexte, la requête, les paramètres
+- **Implémenter un circuit breaker**: Éviter les cascades d'erreurs dans les systèmes distribués
+- **Valider les entrées avant d'envoyer**: Réduire les erreurs LLM par validation Pydantic stricte
+- **Fournir des messages d'erreur clairs**: Les utilisateurs doivent comprendre ce qui s'est passé
+- **Monitorer les taux d'erreur**: Détecter les problèmes rapidement
+
+## Configuration et Initialisation
+
+### Initialiser un Agent Correctement
+
+```python
+from pydantic_ai import Agent
+from pydantic_ai.models import OpenAIModel
+
+# Configuration basique
+agent = Agent(
+    model=OpenAIModel('gpt-4'),
+    system_prompt='Tu es un assistant expert'
+)
+
+# Configuration avancée avec tous les paramètres
+agent = Agent(
+    model=OpenAIModel('gpt-4'),
+    system_prompt='Tu es un assistant',
+    max_tokens=2048,
+    temperature=0.7,
+    tools=[tool1, tool2],
+    dependencies=['dep1', 'dep2'],
+    result_validator=validate_result,
+    error_handler=handle_error
+)
+```
+
+### Variables d'Environnement Requises
+
+- `OPENAI_API_KEY`: Clé API OpenAI pour GPT-4
+- `ANTHROPIC_API_KEY`: Clé API Anthropic pour Claude
+- `GROQ_API_KEY`: Clé API Groq pour les modèles Groq
+- `OLLAMA_HOST`: URL du serveur Ollama (http://localhost:11434)
+
+## Gestion des Dépendances et du Contexte
+
+### Injection de Dépendances
+
+Pydantic AI supporte l'injection de dépendances pour les outils:
+
+```python
+class DatabaseDependency:
+    def __init__(self, connection_string):
+        self.connection_string = connection_string
+    
+    def query(self, sql: str):
+        # Exécuter la requête
+        pass
+
+deps = DatabaseDependency('postgresql://...')
+
+@agent.tool(deps=deps)
+def query_database(query: str):
+    # Accès à deps via le paramètre spécial
+    return deps.query(query)
+```
+
+### Contexte Utilisateur
+
+```python
+from pydantic import BaseModel
+
+class UserContext(BaseModel):
+    user_id: str
+    language: str
+    permissions: list[str]
+
+async def run_for_user(user_ctx: UserContext):
+    result = await agent.run(
+        user_input="...",
+        context=user_ctx
+    )
+    return result
+```
+
+## Validation de Réponses
+
+### Schéma de Réponse Typé
+
+```python
+from pydantic import BaseModel
+
+class WeatherResponse(BaseModel):
+    temperature: float
+    humidity: int
+    condition: str
+
+agent = Agent(
+    model='openai:gpt-4',
+    response_schema=WeatherResponse
+)
+
+result = await agent.run("Quel temps fait-il?")
+# result est du type WeatherResponse, validé automatiquement
+```
+
+### Validation Personnalisée
+
+```python
+def validate_response(response: dict) -> bool:
+    return 'answer' in response and len(response['answer']) > 0
+
+agent.set_response_validator(validate_response)
+```
+
+## Modèles LLM Supportés
+
+Pydantic AI supporte plusieurs fournisseurs et modèles:
+
+### OpenAI Models
+- `gpt-4`: Modèle le plus capable, recommandé pour les tâches complexes
+- `gpt-4-turbo`: Faster than gpt-4, good balance of speed and capability
+- `gpt-3.5-turbo`: Économique et rapide pour les tâches simples
+
+### Anthropic Claude Models
+- `claude-3-opus`: Modèle le plus capable d'Anthropic
+- `claude-3-sonnet`: Équilibre vitesse et capacité
+- `claude-3-haiku`: Très rapide et économique
+
+### Autres Fournisseurs
+- **Groq**: `mixtral-8x7b-32768`, `llama2-70b` - très rapides
+- **Ollama**: Modèles locaux (llama, mistral, neural-chat)
+- **Azure OpenAI**: Support pour les déploiements Azure
+- **Google Vertex AI**: Gemini et PaLM models
+
+## Bonnes Pratiques de Production
+
+### Architecture d'un Projet Pydantic AI
+
+```
+project/
+├── agents/
+│   ├── base_agent.py
+│   ├── chat_agent.py
+│   ├── search_agent.py
+│   └── __init__.py
+├── tools/
+│   ├── database.py
+│   ├── api_calls.py
+│   ├── utils.py
+│   └── __init__.py
+├── schemas/
+│   ├── input_schemas.py
+│   ├── response_schemas.py
+│   └── __init__.py
+├── config.py
+├── main.py
+└── requirements.txt
+```
+
+### Performance et Optimisation
+
+1. **Réutiliser les agents**: Créer une fois, utiliser plusieurs fois (agents sont stateless)
+2. **Batch processing**: Traiter plusieurs requêtes en parallèle
+3. **Caching**: Cacher les réponses fréquentes pour éviter les appels répétés
+4. **Monitoring**: Tracer les appels pour identifier les goulots
+5. **Timeouts**: Toujours définir des timeouts pour éviter les blocages infinis
+6. **Rate limiting**: Respecter les limites des APIs LLM
+
+## Intégration avec Frameworks Web
+
+### Intégration avec FastAPI
+
+```python
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from pydantic_ai import Agent
+
+app = FastAPI()
+agent = Agent(model='openai:gpt-4')
+
+class QueryRequest(BaseModel):
+    question: str
+
+@app.post("/ask")
+async def ask_agent(request: QueryRequest):
+    try:
+        response = await agent.run(request.question)
+        return {"answer": response}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+```
+
+### Logging et Monitoring
+
+```python
+import logging
+from pydantic_ai import Agent
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+agent = Agent(model='openai:gpt-4')
+# Les logs détaillés sont automatiquement générés
+```
+
+## Ressources Supplémentaires
+
+- Documentation officielle: https://docs.pydantic.ai
+- GitHub: https://github.com/pydantic/pydantic-ai
+- Discord Community: Communauté Pydantic Discord
+- Exemples: https://github.com/pydantic/pydantic-ai/tree/main/examples

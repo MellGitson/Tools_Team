@@ -63,8 +63,8 @@ async function indexFile(filePath, fileName) {
     // Lire le fichier
     const content = fs.readFileSync(filePath, 'utf-8');
 
-    // Créer les chunks
-    const chunks = simpleChunk(content, 500);
+    // Créer les chunks (taille réduite pour plus de granularité)
+    const chunks = simpleChunk(content, 300);
     console.log(`  ${chunks.length} chunks créés`);
 
     // Créer les embeddings et préparer les vecteurs
