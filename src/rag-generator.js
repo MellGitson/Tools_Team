@@ -40,8 +40,9 @@ async function ragQuery(question, topK = 3, provider = 'mistral') {
     console.log('📚 CONTEXTE RÉCUPÉRÉ:');
     console.log('─'.repeat(80));
     retrievedChunks.forEach((chunk, idx) => {
+      const source = chunk.metadata?.file ? ` [📁 ${chunk.metadata.file}]` : '';
       console.log(
-        `${idx + 1}. [${chunk.score.toFixed(3)}] ${chunk.text.substring(0, 100)}...`
+        `${idx + 1}. [${chunk.score.toFixed(3)}]${source} ${chunk.text.substring(0, 80)}...`
       );
     });
     console.log('');
@@ -61,6 +62,8 @@ async function ragQuery(question, topK = 3, provider = 'mistral') {
         rank: idx + 1,
         id: chunk.id,
         score: chunk.score,
+        file: chunk.metadata?.file || 'unknown',
+        chunk_index: chunk.metadata?.chunk || 0,
         text: chunk.text.substring(0, 100),
       })),
       provider,
