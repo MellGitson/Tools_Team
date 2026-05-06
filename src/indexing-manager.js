@@ -63,7 +63,9 @@ async function indexFile(filePath, fileName) {
     // Lire le fichier
     const content = fs.readFileSync(filePath, 'utf-8');
 
-    // Créer les chunks (taille réduite pour plus de granularité)
+    // Créer les chunks (300 mots max par chunk, réduit de 500 pour meilleure granularité)
+    // Note: simpleChunk fonctionne en MOTS, pas en tokens
+    // ~1 token ≈ 0.75 mots, donc 300 mots ≈ 400 tokens
     const chunks = simpleChunk(content, 300);
     console.log(`  ${chunks.length} chunks créés`);
 

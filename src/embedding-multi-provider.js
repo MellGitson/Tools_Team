@@ -202,7 +202,14 @@ async function getEmbedding(text, provider = 'auto') {
 }
 
 /**
- * Découpe un texte en chunks de mots
+ * Découpe un texte en chunks de MOTS (pas de tokens)
+ * 
+ * Note: 1 token ≈ 0.75 mots en moyenne
+ * Donc maxWords=300 correspond à environ 400 tokens
+ * 
+ * @param {string} text - Texte à découper
+ * @param {number} maxWords - Nombre maximum de mots par chunk (défaut: 50 mots)
+ * @returns {Array<string>} - Array de chunks
  */
 function simpleChunk(text, maxWords = 50) {
   if (!text || text.trim().length === 0) {
