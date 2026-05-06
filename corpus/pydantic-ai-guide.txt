@@ -1,0 +1,19 @@
+Pydantic AI est un framework Python révolutionnaire pour construire des agents LLM avec validation typée. C'est la solution moderne et production-ready pour créer des agents d'IA robustes, type-safe et maintenables, sortie en 2024 par l'équipe Pydantic. Le framework s'appuie sur la validation Pydantic v2 pour garantir la qualité des données à chaque étape du pipeline.
+
+Les avantages clés incluent la validation typée intégrée, la sécurité de type par défaut, la production-readiness, et le support multi-fournisseur LLM. Pydantic AI est compatible avec OpenAI, Anthropic, Groq, Ollama, Azure OpenAI et Google Vertex AI.
+
+Un Agent est l'entité principale qui gère l'interaction avec un modèle LLM. Il encapsule et orchestre le modèle LLM utilisé, les outils disponibles, le contexte d'exécution, la validation automatique des réponses, et le système de prompt.
+
+La différence entre Agent et RunContext est fondamentale. L'Agent est la configuration globale et réutilisable, défini une fois au démarrage. Le RunContext est le contexte d'exécution temporaire, créé à chaque appel.
+
+Les outils sont des fonctions Python que l'agent peut appeler pour accomplir des tâches spécifiques. Chaque outil doit avoir une signature claire avec types Pydantic et documentation complète.
+
+Le streaming permet d'envoyer les données progressivement au client au lieu d'attendre la réponse complète. Pydantic AI supporte plusieurs modes de streaming: text streaming, tool streaming, et full streaming.
+
+La gestion des erreurs doit être robuste dans une application Pydantic AI. Il faut toujours wrapper les appels LLM dans des blocs try-catch et implémenter un circuit breaker pour éviter les cascades d'erreurs.
+
+L'injection de dépendances est supportée pour les outils, permettant une meilleure organisation du code. Les outils peuvent accéder aux dépendances via paramètres spéciaux.
+
+La validation de réponses utilise des schémas typés avec Pydantic BaseModel, garantissant que toutes les réponses sont valides et conformes au type attendu.
+
+La configuration et l'initialisation d'un agent doivent être faites correctement avec tous les paramètres nécessaires. Les variables d'environnement doivent être bien gérées et les timeouts toujours définis.
