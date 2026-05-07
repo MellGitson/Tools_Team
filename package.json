@@ -37,7 +37,8 @@
     "rag:query": "node src/rag-query-agent.js",
     "rag:full": "node src/rag-generator.js",
     "index": "node src/indexing-manager.js",
-    "hybrid": "node src/hybrid-agent.js"
+    "hybrid": "node src/hybrid-agent.js",
+    "eval": "node scripts/phase8-evaluate.js"
   },
   "keywords": [
     "chatbot",
