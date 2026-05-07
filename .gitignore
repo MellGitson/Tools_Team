@@ -11,3 +11,4 @@ docs/
 data/*
 !data/*.txt
 !data/*.md
+RAG_PROJECT_SUMMARY.md

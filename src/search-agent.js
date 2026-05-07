@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { runAgent } from './agent-loop.js';
 
 // ============================================================
-// OUTIL: WEB SEARCH (DuckDuckGo API)
+// OUTIL: WEB SEARCH (SearchAPI.io - DuckDuckGo Engine)
 // ============================================================
 
 const searchTool = {
@@ -24,20 +24,28 @@ const searchTool = {
 };
 
 /**
- * Effectue une recherche web via DuckDuckGo API
+ * Effectue une recherche web via SearchAPI.io (DuckDuckGo engine)
+ * Fiable, sans blocage, avec résultats structurés
  * @param {string} query - Requête de recherche
  * @returns {Promise<Object>} Résultats formatés
  */
 async function web_search({ query }) {
   try {
-    const encodedQuery = encodeURIComponent(query);
-    const url = `https://api.duckduckgo.com/?q=${encodedQuery}&format=json&no_html=1&skip_disambig=1`;
+    const apiKey = process.env.SEARCH_API_KEY;
+    
+    if (!apiKey) {
+      return {
+        error: 'SEARCH_API_KEY not configured in .env'
+      };
+    }
 
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Educational Project - Tools_ia)'
-      }
+    const params = new URLSearchParams({
+      engine: 'duckduckgo',
+      q: query,
+      api_key: apiKey
     });
+
+    const response = await fetch(`https://www.searchapi.io/api/v1/search?${params}`);
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
@@ -45,59 +53,73 @@ async function web_search({ query }) {
 
     const data = await response.json();
 
-    // 1. Vérifier d'abord AbstractText (résumé Wikipedia ou similaire)
-    if (data.AbstractText && data.AbstractText.trim().length > 10) {
+    // 1. Priorité 1: AI Overview (réponses directes)
+    if (data.ai_overview?.answer) {
       return {
         query,
-        result: data.AbstractText.substring(0, 500),
-        source: data.AbstractSource || 'DuckDuckGo',
-        url: data.AbstractURL || 'N/A'
+        result: data.ai_overview.answer.substring(0, 500),
+        source: 'SearchAPI (AI Overview)',
+        url: 'N/A',
+        type: 'ai_overview'
       };
     }
 
-    // 2. Essayer les résultats connexes (Topics)
-    if (data.RelatedTopics && Array.isArray(data.RelatedTopics) && data.RelatedTopics.length > 0) {
-      const results = [];
-      
-      for (const topic of data.RelatedTopics) {
-        // Ignorer les groupes de sujets
-        if (topic.Topics) continue;
-        
-        if (topic.Text && topic.Text.trim().length > 0) {
-          results.push({
-            text: topic.Text,
-            url: topic.FirstURL || 'N/A'
-          });
-        }
-        
-        if (results.length >= 3) break;
-      }
+    // 2. Priorité 2: Knowledge Graph (résumés structurés)
+    if (data.knowledge_graph) {
+      const kg = data.knowledge_graph;
+      let result = kg.title;
+      if (kg.subtitle) result += ` - ${kg.subtitle}`;
+      if (kg.description) result += `. ${kg.description.substring(0, 300)}`;
 
-      if (results.length > 0) {
-        return {
-          query,
-          results,
-          source: 'DuckDuckGo Topics',
-          count: results.length
-        };
-      }
-    }
-
-    // 3. Vérifier Definition (pour les définitions)
-    if (data.Definition && data.Definition.trim().length > 0) {
       return {
         query,
-        result: data.Definition,
-        source: 'DuckDuckGo Definition',
-        url: data.DefinitionURL || 'N/A'
+        result: result.substring(0, 500),
+        source: 'SearchAPI (Knowledge Graph)',
+        url: kg.website || 'N/A',
+        type: 'knowledge_graph'
       };
     }
 
-    // 4. Aucun résultat
+    // 3. Priorité 3: Organic Results (résultats de recherche)
+    if (data.organic_results && data.organic_results.length > 0) {
+      const results = data.organic_results.slice(0, 3).map(r => ({
+        title: r.title,
+        url: r.link,
+        snippet: r.snippet
+      }));
+
+      return {
+        query,
+        results,
+        source: 'SearchAPI (Organic Results)',
+        count: results.length,
+        type: 'organic'
+      };
+    }
+
+    // 4. Priorité 4: Top Stories (actualités)
+    if (data.top_stories && data.top_stories.length > 0) {
+      const stories = data.top_stories.slice(0, 2).map(s => ({
+        title: s.title,
+        source: s.source,
+        snippet: s.snippet
+      }));
+
+      return {
+        query,
+        results: stories,
+        source: 'SearchAPI (Top Stories)',
+        count: stories.length,
+        type: 'stories'
+      };
+    }
+
+    // 5. Aucun résultat
     return {
       query,
       message: `Aucun résultat trouvé pour: "${query}". Essayez une requête plus spécifique.`,
-      source: 'DuckDuckGo'
+      source: 'SearchAPI',
+      type: 'empty'
     };
   } catch (error) {
     return {
